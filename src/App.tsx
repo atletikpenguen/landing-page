@@ -10,24 +10,26 @@ export default function LandingPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/', {
+      const response = await fetch('/api/submit-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          'form-name': 'preregister',
-          'email': email
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setIsSubmitted(true);
         setEmail('');
         setTimeout(() => {
           setIsSubmitted(false);
         }, 5000);
+      } else {
+        alert(data.message || 'Bir hata oluştu, lütfen tekrar deneyin');
       }
     } catch (error) {
       console.error('Form submission error:', error);
+      alert('Bağlantı hatası, lütfen tekrar deneyin');
     } finally {
       setIsLoading(false);
     }
@@ -124,13 +126,7 @@ export default function LandingPage() {
               margin: '0 auto 3rem',
               backdropFilter: 'blur(10px)'
             }}>
-              <form 
-                name="preregister" 
-                method="POST" 
-                data-netlify="true"
-                onSubmit={handleSubmit}
-              >
-                <input type="hidden" name="form-name" value="preregister" />
+              <form onSubmit={handleSubmit}>
                 
                 <div style={{
                   display: 'flex',
