@@ -37,7 +37,7 @@ export default function LandingPage() {
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Şifre: analistligi2025 (değiştirebilirsiniz)
-    const correctPassword = 'analistligi2025';
+    const correctPassword = 'qwe1323';
     
     if (password === correctPassword) {
       localStorage.setItem('analistligi_admin_auth', 'true');
