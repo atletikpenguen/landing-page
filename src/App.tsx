@@ -4,36 +4,211 @@ export default function LandingPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [emailList, setEmailList] = useState<any[]>([]);
+
+  // Admin panel check
+  React.useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#admin') {
+        setShowAdmin(true);
+        loadEmails();
+      } else {
+        setShowAdmin(false);
+      }
+    };
+    
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
+
+  const loadEmails = () => {
+    const emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    setEmailList(emails);
+  };
+
+  const exportEmails = () => {
+    const emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    const dataStr = JSON.stringify(emails, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `analist-ligi-emails-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const clearEmails = () => {
+    if (window.confirm('Tüm email\'leri silmek istediğinizden emin misiniz?')) {
+      localStorage.removeItem('analistligi_emails');
+      setEmailList([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/submit-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setIsSubmitted(true);
-        setEmail('');
-        setTimeout(() => {
-          setIsSubmitted(false);
-        }, 5000);
-      } else {
-        alert(data.message || 'Bir hata oluştu, lütfen tekrar deneyin');
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert('Lütfen geçerli bir email adresi girin');
+        setIsLoading(false);
+        return;
       }
+
+      // Get existing emails from localStorage
+      const existingEmails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+      
+      // Check if email already exists
+      if (existingEmails.some((item: any) => item.email === email)) {
+        alert('Bu email adresi zaten kayıtlı!');
+        setIsLoading(false);
+        return;
+      }
+
+      // Add new email with timestamp
+      const newEmail = {
+        email: email,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleString('tr-TR')
+      };
+      
+      existingEmails.push(newEmail);
+      localStorage.setItem('analistligi_emails', JSON.stringify(existingEmails));
+
+      // Success feedback
+      setIsSubmitted(true);
+      setEmail('');
+      setTimeout(() => {
+        setIsSubmitted(false);
+      }, 5000);
+
     } catch (error) {
       console.error('Form submission error:', error);
-      alert('Bağlantı hatası, lütfen tekrar deneyin');
+      alert('Bir hata oluştu, lütfen tekrar deneyin');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Admin Panel
+  if (showAdmin) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#1a202c',
+        color: 'white',
+        padding: '2rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <h1 style={{ color: '#fbbf24', marginBottom: '2rem' }}>
+            📧 Analist Ligi - Email Listesi
+          </h1>
+          
+          <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={loadEmails}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Yenile
+            </button>
+            
+            <button
+              onClick={exportEmails}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#22c55e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              📥 JSON Export
+            </button>
+            
+            <button
+              onClick={clearEmails}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              🗑️ Tümünü Sil
+            </button>
+            
+            <button
+              onClick={() => window.location.hash = ''}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              ← Ana Sayfa
+            </button>
+          </div>
+
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '1rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              fontWeight: 600
+            }}>
+              Toplam Kayıt: {emailList.length}
+            </div>
+            
+            {emailList.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                Henüz kayıt yok
+              </div>
+            ) : (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {emailList.map((item, index) => (
+                  <div key={index} style={{
+                    padding: '1rem',
+                    borderBottom: index < emailList.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ color: '#60a5fa' }}>{item.email}</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{item.date}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
