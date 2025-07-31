@@ -6,15 +6,26 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [emailList, setEmailList] = useState<any[]>([]);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [password, setPassword] = useState('');
 
   // Admin panel check
   React.useEffect(() => {
     const checkHash = () => {
       if (window.location.hash === '#admin') {
-        setShowAdmin(true);
-        loadEmails();
+        // Check if user is already authenticated
+        const isAuthenticated = localStorage.getItem('analistligi_admin_auth') === 'true';
+        if (isAuthenticated) {
+          setShowAdmin(true);
+          loadEmails();
+        } else {
+          setShowPasswordPrompt(true);
+          setShowAdmin(false);
+        }
       } else {
         setShowAdmin(false);
+        setShowPasswordPrompt(false);
+        setPassword('');
       }
     };
     
@@ -22,6 +33,30 @@ export default function LandingPage() {
     window.addEventListener('hashchange', checkHash);
     return () => window.removeEventListener('hashchange', checkHash);
   }, []);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Şifre: analistligi2025 (değiştirebilirsiniz)
+    const correctPassword = 'analistligi2025';
+    
+    if (password === correctPassword) {
+      localStorage.setItem('analistligi_admin_auth', 'true');
+      setShowPasswordPrompt(false);
+      setShowAdmin(true);
+      setPassword('');
+      loadEmails();
+    } else {
+      alert('Yanlış şifre!');
+      setPassword('');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('analistligi_admin_auth');
+    setShowAdmin(false);
+    setShowPasswordPrompt(false);
+    window.location.hash = '';
+  };
 
   const loadEmails = () => {
     const emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
@@ -96,6 +131,114 @@ export default function LandingPage() {
     }
   };
 
+  // Password Prompt
+  if (showPasswordPrompt) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #1a202c 0%, #2d3748 100%)',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          padding: '3rem',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          maxWidth: '400px',
+          width: '100%',
+          margin: '1rem'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h2 style={{
+              color: '#fbbf24',
+              marginBottom: '0.5rem',
+              fontSize: '1.5rem'
+            }}>
+              🔐 Admin Paneli
+            </h2>
+            <p style={{ color: '#94a3b8', margin: 0 }}>
+              Giriş yapmak için şifre gerekli
+            </p>
+          </div>
+
+          <form onSubmit={handlePasswordSubmit}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Admin şifresi..."
+                required
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                type="submit"
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: 'linear-gradient(45deg, #60a5fa, #3b82f6)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                🚀 Giriş Yap
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => window.location.hash = ''}
+                style={{
+                  padding: '1rem',
+                  background: '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+              >
+                ← İptal
+              </button>
+            </div>
+          </form>
+
+          <div style={{
+            marginTop: '2rem',
+            padding: '1rem',
+            background: 'rgba(251, 191, 36, 0.1)',
+            border: '1px solid #fbbf24',
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            color: '#fbbf24'
+          }}>
+            💡 <strong>Varsayılan şifre:</strong> analistligi2025
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Admin Panel
   if (showAdmin) {
     return (
@@ -166,6 +309,20 @@ export default function LandingPage() {
               }}
             >
               ← Ana Sayfa
+            </button>
+            
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              🔐 Çıkış Yap
             </button>
           </div>
 
