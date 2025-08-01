@@ -128,31 +128,34 @@ export default function LandingPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Custom validation before Formspree submission
+  const validateAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert('Lütfen geçerli bir email adresi girin');
+      return;
+    }
 
-    try {
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        alert('Lütfen geçerli bir email adresi girin');
-        setIsLoading(false);
-        return;
-      }
+    // Check local storage for duplicates
+    const existingEmails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    if (existingEmails.some((item: any) => item.email === email)) {
+      alert('Bu email adresi zaten kayıtlı!');
+      return;
+    }
 
-      // Check local storage for duplicates
-      const existingEmails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
-      if (existingEmails.some((item: any) => item.email === email)) {
-        alert('Bu email adresi zaten kayıtlı!');
-        setIsLoading(false);
-        return;
-      }
+    // Create form data and submit to Formspree
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    handleFormspreeSubmit(formData);
+  };
 
-      // Submit to Formspree dfdfd
-      await handleFormspreeSubmit(e);
-
-      // If successful, save to local storage
+  // Formspree success effect - save to localStorage when form succeeds
+  React.useEffect(() => {
+    if (formState.succeeded) {
+      // Save to local storage after successful Formspree submission
       const emailData = {
         email: email,
         timestamp: new Date().toISOString(),
@@ -166,25 +169,8 @@ export default function LandingPage() {
       setTimeout(() => {
         setIsSubmitted(false);
       }, 5000);
-
-    } catch (error) {
-      console.error('Form submission error:', error);
-      alert('Bir hata oluştu, lütfen tekrar deneyin');
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  // Formspree success effect
-  React.useEffect(() => {
-    if (formState.succeeded) {
-      setIsSubmitted(true);
-      setEmail('');
-      setTimeout(() => {
-        setIsSubmitted(false);
-      }, 5000);
-    }
-  }, [formState.succeeded]);
+  }, [formState.succeeded, email]);
 
   // Password Prompt
   if (showPasswordPrompt) {
@@ -516,7 +502,7 @@ export default function LandingPage() {
                 margin: '0 auto 3rem',
               backdropFilter: 'blur(10px)'
               }}>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={validateAndSubmit}>
                 
                   <div style={{
                     display: 'flex',
