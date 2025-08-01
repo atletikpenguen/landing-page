@@ -74,6 +74,12 @@ export default function LandingPage() {
     const sessionEmails = JSON.parse(sessionStorage.getItem('analistligi_emails') || '[]');
     sessionEmails.push(emailData);
     sessionStorage.setItem('analistligi_emails', JSON.stringify(sessionEmails));
+    
+    // Also save to a hidden input for persistent backup
+    const backupInput = document.getElementById('email-backup') as HTMLInputElement;
+    if (backupInput) {
+      backupInput.value = JSON.stringify(existingEmails);
+    }
   };
 
   const loadEmailsFromAllSources = () => {
@@ -320,6 +326,39 @@ export default function LandingPage() {
               }}
             >
               🔍 Email Recovery
+            </button>
+            
+            <button
+              onClick={() => {
+                const manualEmails = prompt('Dünkü email\'leri JSON formatında yapıştırın:\n\nÖrnek format:\n[{"email":"test@example.com","timestamp":"2025-01-31T10:00:00.000Z","date":"31.01.2025 13:00:00"}]');
+                if (manualEmails) {
+                  try {
+                    const parsedEmails = JSON.parse(manualEmails);
+                    if (Array.isArray(parsedEmails)) {
+                      // Save to all storage locations
+                      localStorage.setItem('analistligi_emails', manualEmails);
+                      localStorage.setItem('analistligi_emails_backup', manualEmails);
+                      sessionStorage.setItem('analistligi_emails', manualEmails);
+                      setEmailList(parsedEmails);
+                      alert(`${parsedEmails.length} email başarıyla geri yüklendi!`);
+                    } else {
+                      alert('Geçersiz format! Array bekleniyor.');
+                    }
+                  } catch (error) {
+                    alert('JSON formatı hatalı! Lütfen geçerli JSON yapıştırın.');
+                  }
+                }
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#8b5cf6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              📥 Manual Import
             </button>
             
             <button
