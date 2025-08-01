@@ -58,13 +58,48 @@ export default function LandingPage() {
     window.location.hash = '';
   };
 
+  // Enhanced localStorage with backup
+  const saveEmailWithBackup = (emailData: any) => {
+    // Save to main storage
+    const existingEmails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    existingEmails.push(emailData);
+    localStorage.setItem('analistligi_emails', JSON.stringify(existingEmails));
+    
+    // Also save to backup storage
+    const backupEmails = JSON.parse(localStorage.getItem('analistligi_emails_backup') || '[]');
+    backupEmails.push(emailData);
+    localStorage.setItem('analistligi_emails_backup', JSON.stringify(backupEmails));
+    
+    // Save to sessionStorage as well
+    const sessionEmails = JSON.parse(sessionStorage.getItem('analistligi_emails') || '[]');
+    sessionEmails.push(emailData);
+    sessionStorage.setItem('analistligi_emails', JSON.stringify(sessionEmails));
+  };
+
+  const loadEmailsFromAllSources = () => {
+    // Try main storage first
+    let emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    
+    // If empty, try backup
+    if (emails.length === 0) {
+      emails = JSON.parse(localStorage.getItem('analistligi_emails_backup') || '[]');
+    }
+    
+    // If still empty, try session storage
+    if (emails.length === 0) {
+      emails = JSON.parse(sessionStorage.getItem('analistligi_emails') || '[]');
+    }
+    
+    return emails;
+  };
+
   const loadEmails = () => {
-    const emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    const emails = loadEmailsFromAllSources();
     setEmailList(emails);
   };
 
   const exportEmails = () => {
-    const emails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
+    const emails = loadEmailsFromAllSources();
     const dataStr = JSON.stringify(emails, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
@@ -106,15 +141,15 @@ export default function LandingPage() {
         return;
       }
 
-      // Add new email with timestamp
-      const newEmail = {
-        email: email,
-        timestamp: new Date().toISOString(),
-        date: new Date().toLocaleString('tr-TR')
-      };
-      
-      existingEmails.push(newEmail);
-      localStorage.setItem('analistligi_emails', JSON.stringify(existingEmails));
+          // Add new email with timestamp
+    const newEmail = {
+      email: email,
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleString('tr-TR')
+    };
+    
+    // Save with enhanced backup system
+    saveEmailWithBackup(newEmail);
 
       // Success feedback
       setIsSubmitted(true);
@@ -267,6 +302,24 @@ export default function LandingPage() {
               }}
             >
               🔄 Yenile
+            </button>
+            
+            <button
+              onClick={() => {
+                const recoveredEmails = loadEmailsFromAllSources();
+                setEmailList(recoveredEmails);
+                alert(`Recovery tamamlandı! ${recoveredEmails.length} email bulundu.`);
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#f59e0b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              🔍 Email Recovery
             </button>
             
             <button
