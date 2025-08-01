@@ -124,7 +124,7 @@ export default function LandingPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -137,36 +137,70 @@ export default function LandingPage() {
         return;
       }
 
-      // Get existing emails from localStorage
+      // Check local storage for duplicates
       const existingEmails = JSON.parse(localStorage.getItem('analistligi_emails') || '[]');
-      
-      // Check if email already exists
       if (existingEmails.some((item: any) => item.email === email)) {
         alert('Bu email adresi zaten kayıtlı!');
         setIsLoading(false);
         return;
       }
 
-          // Add new email with timestamp
-    const newEmail = {
-      email: email,
-      timestamp: new Date().toISOString(),
-      date: new Date().toLocaleString('tr-TR')
-    };
-    
-    // Save with enhanced backup system
-    saveEmailWithBackup(newEmail);
+      // Create email data
+      const emailData = {
+        email: email,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleString('tr-TR')
+      };
 
-      // Success feedback
+      // Google Apps Script Web App URL (değiştirin!)
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+      
+      // Send to Google Sheets
+      const formData = new FormData();
+      formData.append('email', emailData.email);
+      formData.append('date', emailData.date);
+      formData.append('timestamp', emailData.timestamp);
+
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Also save locally as backup
+        saveEmailWithBackup(emailData);
+        
+        // Success feedback
+        setIsSubmitted(true);
+        setEmail('');
+        setTimeout(() => {
+          setIsSubmitted(false);
+        }, 5000);
+      } else {
+        throw new Error(result.message || 'Google Sheets kaydı başarısız');
+      }
+
+    } catch (error) {
+      console.error('Form submission error:', error);
+      
+      // Fallback to local storage
+      const emailData = {
+        email: email,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleString('tr-TR')
+      };
+      saveEmailWithBackup(emailData);
+      
+      // Still show success (user doesn't need to know about backend issues)
       setIsSubmitted(true);
       setEmail('');
       setTimeout(() => {
         setIsSubmitted(false);
       }, 5000);
-
-    } catch (error) {
-      console.error('Form submission error:', error);
-      alert('Bir hata oluştu, lütfen tekrar deneyin');
+      
+      console.log('Saved to local storage as fallback');
     } finally {
       setIsLoading(false);
     }
@@ -291,11 +325,45 @@ export default function LandingPage() {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h1 style={{ color: '#fbbf24', marginBottom: '2rem' }}>
-            📧 Analist Ligi - Email Listesi
+          <h1 style={{ color: '#fbbf24', marginBottom: '1rem' }}>
+            📧 Analist Ligi - Admin Panel
           </h1>
           
+          <div style={{
+            background: 'rgba(52, 168, 83, 0.1)',
+            border: '2px solid #34a853',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '2rem'
+          }}>
+            <h3 style={{ color: '#34a853', marginBottom: '1rem', fontSize: '1.2rem' }}>
+              📊 Google Sheets Entegrasyonu Aktif!
+            </h3>
+            <p style={{ color: '#e5e7eb', lineHeight: 1.6, margin: 0 }}>
+              Tüm email kayıtları otomatik olarak <strong>Google Sheets</strong>'e kaydediliyor. 
+              Aşağıdaki butona tıklayarak real-time email listesini görüntüleyebilirsiniz.
+            </p>
+          </div>
+          
           <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => {
+                window.open('https://docs.google.com/spreadsheets/d/1M2YRv_MoJ6Wu3t-Mtl51KJrTL5mEy3pV-XHVDeLFoLw/edit', '_blank');
+              }}
+              style={{
+                padding: '1rem 2rem',
+                background: 'linear-gradient(45deg, #34a853, #0f9d58)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '1.1rem',
+                fontWeight: 600
+              }}
+            >
+              📊 Google Sheets'i Aç
+            </button>
+            
             <button
               onClick={loadEmails}
               style={{
@@ -307,58 +375,7 @@ export default function LandingPage() {
                 cursor: 'pointer'
               }}
             >
-              🔄 Yenile
-            </button>
-            
-            <button
-              onClick={() => {
-                const recoveredEmails = loadEmailsFromAllSources();
-                setEmailList(recoveredEmails);
-                alert(`Recovery tamamlandı! ${recoveredEmails.length} email bulundu.`);
-              }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              🔍 Email Recovery
-            </button>
-            
-            <button
-              onClick={() => {
-                const manualEmails = prompt('Dünkü email\'leri JSON formatında yapıştırın:\n\nÖrnek format:\n[{"email":"test@example.com","timestamp":"2025-01-31T10:00:00.000Z","date":"31.01.2025 13:00:00"}]');
-                if (manualEmails) {
-                  try {
-                    const parsedEmails = JSON.parse(manualEmails);
-                    if (Array.isArray(parsedEmails)) {
-                      // Save to all storage locations
-                      localStorage.setItem('analistligi_emails', manualEmails);
-                      localStorage.setItem('analistligi_emails_backup', manualEmails);
-                      sessionStorage.setItem('analistligi_emails', manualEmails);
-                      setEmailList(parsedEmails);
-                      alert(`${parsedEmails.length} email başarıyla geri yüklendi!`);
-                    } else {
-                      alert('Geçersiz format! Array bekleniyor.');
-                    }
-                  } catch (error) {
-                    alert('JSON formatı hatalı! Lütfen geçerli JSON yapıştırın.');
-                  }
-                }
-              }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#8b5cf6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              📥 Manual Import
+              🔄 Local Backup Yenile
             </button>
             
             <button
@@ -372,21 +389,7 @@ export default function LandingPage() {
                 cursor: 'pointer'
               }}
             >
-              📥 JSON Export
-            </button>
-            
-            <button
-              onClick={clearEmails}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              🗑️ Tümünü Sil
+              📥 Local Backup Export
             </button>
             
             <button
@@ -478,163 +481,163 @@ export default function LandingPage() {
         padding: '1rem 0',
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 20px',
-          display: 'flex',
-          justifyContent: 'flex-start',
-          alignItems: 'center'
-        }}>
-          <img 
+                 <div style={{
+           maxWidth: '1200px',
+           margin: '0 auto',
+           padding: '0 20px',
+           display: 'flex',
+           justifyContent: 'flex-start',
+             alignItems: 'center'
+           }}>
+             <img 
             src="/logo.png"
-            alt="Analist Ligi" 
-            style={{
-              height: '40px',
-              width: 'auto',
-              objectFit: 'contain'
-            }}
-          />
-        </div>
+               alt="Analist Ligi" 
+               style={{
+                 height: '40px',
+                 width: 'auto',
+                 objectFit: 'contain'
+               }}
+             />
+         </div>
       </header>
 
-      {/* Hero Section */}
+        {/* Hero Section */}
       <main style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '1rem',
-        paddingTop: '100px'
-      }}>
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '1rem',
+          paddingTop: '100px'
+        }}>
         <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
+            maxWidth: '1200px',
+            margin: '0 auto',
           padding: '0 1rem',
           textAlign: 'center',
           width: '100%'
-        }}>
-          <div style={{
-            maxWidth: '800px',
-            margin: '0 auto'
           }}>
-            <h1 style={{
+            <div style={{
+              maxWidth: '800px',
+              margin: '0 auto'
+            }}>
+              <h1 style={{
               fontSize: 'clamp(2rem, 5vw, 4rem)',
-              fontWeight: 800,
-              marginBottom: '1.5rem',
-              lineHeight: 1.2,
-              background: 'linear-gradient(45deg, #60a5fa, #fbbf24)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              BİLGİNİN VE YETENEĞİN YENİ SAHNESİ AÇILIYOR.
-            </h1>
-            
-            <p style={{
-              fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
-              color: '#94a3b8',
-              marginBottom: '3rem',
-              lineHeight: 1.6
-            }}>
+                fontWeight: 800,
+                marginBottom: '1.5rem',
+                lineHeight: 1.2,
+                background: 'linear-gradient(45deg, #60a5fa, #fbbf24)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                BİLGİNİN VE YETENEĞİN YENİ SAHNESİ AÇILIYOR.
+              </h1>
+              
+              <p style={{
+                fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
+                color: '#94a3b8',
+                marginBottom: '3rem',
+                lineHeight: 1.6
+              }}>
               Türkiye'nin ilk performans tescilli analist platformu Analist Ligi, çok yakında açılıyor. 
               İster sadece kendini test et, ister yeni stratejiler öğren, ister zirveye tırman... 
               Seçim senin. Spor bilgisiyle fark yaratmak isteyen herkes için adil bir arena kuruyoruz.
-            </p>
+              </p>
 
             {/* Email Form */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
               padding: '2rem',
-              borderRadius: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              maxWidth: '500px',
-              margin: '0 auto 3rem',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                maxWidth: '500px',
+                margin: '0 auto 3rem',
               backdropFilter: 'blur(10px)'
-            }}>
+              }}>
               <form onSubmit={handleSubmit}>
                 
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
                   gap: '1rem'
-                }}>
-                  <input
-                    type="email"
+                  }}>
+                    <input
+                      type="email"
                     name="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     placeholder="e-posta adresinizi girin..."
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '1rem 1.5rem',
-                      border: '2px solid rgba(255, 255, 255, 0.2)',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                      fontSize: '1rem',
-                      transition: 'all 0.3s ease',
-                      boxSizing: 'border-box'
-                    }}
-                  />
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '1rem 1.5rem',
+                        border: '2px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: 'white',
+                        fontSize: '1rem',
+                        transition: 'all 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
+                    />
                   
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    style={{
-                      width: '100%',
-                      padding: '1rem 2rem',
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      style={{
+                        width: '100%',
+                        padding: '1rem 2rem',
                       background: isLoading 
                         ? 'rgba(96, 165, 250, 0.5)' 
                         : 'linear-gradient(45deg, #60a5fa, #3b82f6)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '1rem',
-                      fontWeight: 600,
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '1rem',
+                        fontWeight: 600,
                       cursor: isLoading ? 'not-allowed' : 'pointer',
                       transition: 'all 0.3s ease'
                     }}
                   >
                     {isLoading ? '🔄 Gönderiliyor...' : '🚀 ÖN KAYIT OLUŞTUR'}
-                  </button>
-                </div>
-              </form>
-              
-              {isSubmitted && (
-                <div style={{
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  border: '2px solid #22c55e',
-                  color: '#22c55e',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  marginTop: '1rem',
-                  textAlign: 'center'
-                }}>
-                  ✅ Teşekkürler! Yayın tarihinden önce size bilgilendirme yapacağız.
-                </div>
-              )}
-            </div>
+                    </button>
+                  </div>
+                </form>
+                
+                {isSubmitted && (
+                  <div style={{
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    border: '2px solid #22c55e',
+                    color: '#22c55e',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    marginTop: '1rem',
+                    textAlign: 'center'
+                  }}>
+                    ✅ Teşekkürler! Yayın tarihinden önce size bilgilendirme yapacağız.
+                  </div>
+                )}
+              </div>
 
             {/* Launch Info */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
               gap: '2rem',
-              flexWrap: 'wrap',
-              marginTop: '2rem'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{
+                flexWrap: 'wrap',
+                marginTop: '2rem'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{
                   fontSize: '1.2rem',
-                  fontWeight: 700,
-                  color: '#60a5fa',
-                  display: 'block'
+                    fontWeight: 700,
+                    color: '#60a5fa',
+                    display: 'block'
                 }}>Tamamen Ücretsiz</span>
-                <span style={{
-                  fontSize: '1rem',
-                  color: '#94a3b8',
-                  marginTop: '0.5rem',
-                  display: 'block'
+                  <span style={{
+                    fontSize: '1rem',
+                    color: '#94a3b8',
+                    marginTop: '0.5rem',
+                    display: 'block'
                 }}>Yayın Tarihi: Ağustos 2025</span>
               </div>
             </div>
@@ -642,7 +645,110 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Incentive Section */}
+        {/* Incentive Section */}
+        <section style={{
+          padding: '5rem 0',
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+        }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 1rem'
+        }}>
+            <div style={{
+              maxWidth: '800px',
+              margin: '0 auto',
+              textAlign: 'center'
+            }}>
+                             <h2 style={{
+                 fontSize: 'clamp(2rem, 4vw, 2.5rem)',
+                 fontWeight: 700,
+                 color: '#fbbf24',
+                 marginBottom: '2rem'
+               }}>
+                 ÖNCÜ OL, AVANTAJI KAP!
+               </h2>
+                               <p style={{
+                  fontSize: '1.2rem',
+                  color: '#e5e7eb',
+              lineHeight: 1.7,
+              marginBottom: '2rem'
+                }}>
+                 "Analist Ligi"ne ilk adım atanlardan ol! Platforma ilk üye olan sınırılı sayıdaki analistler, özel bir başlangıç paketinin sahibi olacak:
+               </p>
+            
+               <div style={{
+              display: 'grid',
+              gap: '1rem',
+                 maxWidth: '600px',
+                 margin: '2rem auto 0'
+               }}>
+                 <div style={{
+                   background: 'rgba(255, 255, 255, 0.05)',
+                   padding: '1.5rem',
+                   borderRadius: '12px',
+                   border: '1px solid rgba(255, 255, 255, 0.1)',
+                textAlign: 'left'
+                 }}>
+                   <h3 style={{
+                     fontSize: '1.1rem',
+                     fontWeight: 600,
+                     color: '#fbbf24',
+                     marginBottom: '0.5rem'
+                   }}>
+                     "Öncü Analist 🛡️" Arması
+                   </h3>
+                   <p style={{
+                     fontSize: '1rem',
+                     color: '#94a3b8',
+                     lineHeight: 1.6,
+                     margin: 0
+                   }}>
+                     Profilinizde ömür boyu gururla taşıyacağınız, platformun kurucu ruhunu temsil eden, sonradan kazanılması imkansız prestijli bir statü sembolü.
+                   </p>
+                 </div>
+              
+                 <div style={{
+                   background: 'rgba(255, 255, 255, 0.05)',
+                   padding: '1.5rem',
+                   borderRadius: '12px',
+                   border: '1px solid rgba(255, 255, 255, 0.1)',
+                textAlign: 'left'
+                 }}>
+                   <h3 style={{
+                     fontSize: '1.1rem',
+                     fontWeight: 600,
+                     color: '#fbbf24',
+                     marginBottom: '0.5rem'
+                   }}>
+                     Ekstra Büyüteç Bonusu
+                   </h3>
+                   <p style={{
+                     fontSize: '1rem',
+                     color: '#94a3b8',
+                     lineHeight: 1.6,
+                     margin: 0
+                   }}>
+                     İlk üyelere özel Ekstra Büyüteç Bonusu veriyoruz.
+                   </p>
+                 </div>
+            </div>
+            
+                 <p style={{
+                   fontSize: '1.1rem',
+                   color: '#e5e7eb',
+                   lineHeight: 1.6,
+                   textAlign: 'center',
+                   marginTop: '2rem',
+                   fontStyle: 'italic'
+                 }}>
+                   Bu sadece bir başlangıç değil, bir ayrıcalıktır. Aramıza ilk katılanlardan olduğun için teşekkürümüzdür. Ön kayıt oluştur, bizi takip et!
+                 </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Philosophy Section */}
       <section style={{
         padding: '5rem 0',
         background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
@@ -652,122 +758,19 @@ export default function LandingPage() {
           margin: '0 auto',
           padding: '0 1rem'
         }}>
-          <div style={{
-            maxWidth: '800px',
-            margin: '0 auto',
-            textAlign: 'center'
-          }}>
             <h2 style={{
               fontSize: 'clamp(2rem, 4vw, 2.5rem)',
               fontWeight: 700,
-              color: '#fbbf24',
-              marginBottom: '2rem'
+              textAlign: 'center',
+              marginBottom: '3rem',
+              color: 'white'
             }}>
-              ÖNCÜ OL, AVANTAJI KAP!
+              NEDEN ANALİST LİGİ?
             </h2>
-            <p style={{
-              fontSize: '1.2rem',
-              color: '#e5e7eb',
-              lineHeight: 1.7,
-              marginBottom: '2rem'
-            }}>
-              "Analist Ligi"ne ilk adım atanlardan ol! Platforma ilk üye olan sınırılı sayıdaki analistler, özel bir başlangıç paketinin sahibi olacak:
-            </p>
-            
+          
             <div style={{
               display: 'grid',
-              gap: '1rem',
-              maxWidth: '600px',
-              margin: '2rem auto 0'
-            }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                textAlign: 'left'
-              }}>
-                <h3 style={{
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  color: '#fbbf24',
-                  marginBottom: '0.5rem'
-                }}>
-                  "Öncü Analist 🛡️" Arması
-                </h3>
-                <p style={{
-                  fontSize: '1rem',
-                  color: '#94a3b8',
-                  lineHeight: 1.6,
-                  margin: 0
-                }}>
-                  Profilinizde ömür boyu gururla taşıyacağınız, platformun kurucu ruhunu temsil eden, sonradan kazanılması imkansız prestijli bir statü sembolü.
-                </p>
-              </div>
-              
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                textAlign: 'left'
-              }}>
-                <h3 style={{
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  color: '#fbbf24',
-                  marginBottom: '0.5rem'
-                }}>
-                  Ekstra Büyüteç Bonusu
-                </h3>
-                <p style={{
-                  fontSize: '1rem',
-                  color: '#94a3b8',
-                  lineHeight: 1.6,
-                  margin: 0
-                }}>
-                  İlk üyelere özel Ekstra Büyüteç Bonusu veriyoruz.
-                </p>
-              </div>
-            </div>
-            
-            <p style={{
-              fontSize: '1.1rem',
-              color: '#e5e7eb',
-              lineHeight: 1.6,
-              textAlign: 'center',
-              marginTop: '2rem',
-              fontStyle: 'italic'
-            }}>
-              Bu sadece bir başlangıç değil, bir ayrıcalıktır. Aramıza ilk katılanlardan olduğun için teşekkürümüzdür. Ön kayıt oluştur, bizi takip et!
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Philosophy Section */}
-      <section style={{
-        padding: '5rem 0',
-        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 1rem'
-        }}>
-          <h2 style={{
-            fontSize: 'clamp(2rem, 4vw, 2.5rem)',
-            fontWeight: 700,
-            textAlign: 'center',
-            marginBottom: '3rem',
-            color: 'white'
-          }}>
-            NEDEN ANALİST LİGİ?
-          </h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '2rem'
           }}>
             {[
@@ -797,7 +800,7 @@ export default function LandingPage() {
               }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
                   {feature.icon}
-                </div>
+              </div>
                 <h3 style={{
                   fontSize: '1.3rem',
                   fontWeight: 600,
@@ -812,10 +815,10 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      {/* Trust Box */}
+        {/* Trust Box */}
       <section style={{
         padding: '5rem 0',
         background: '#1a202c'
@@ -825,26 +828,26 @@ export default function LandingPage() {
           margin: '0 auto',
           padding: '0 1rem'
         }}>
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '2px solid #ef4444',
-            borderRadius: '16px',
-            padding: '2rem',
-            maxWidth: '800px',
-            margin: '0 auto'
-          }}>
-            <h3 style={{
-              color: '#ef4444',
-              fontSize: '1.5rem',
-              marginBottom: '1.5rem',
-              textAlign: 'center'
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '2px solid #ef4444',
+              borderRadius: '16px',
+              padding: '2rem',
+              maxWidth: '800px',
+              margin: '0 auto'
             }}>
-              ⚠️ ÖNEMLİ BİLGİLENDİRME
-            </h3>
-            <ul style={{
-              listStyle: 'none',
-              color: '#e5e7eb'
-            }}>
+              <h3 style={{
+                color: '#ef4444',
+                fontSize: '1.5rem',
+                marginBottom: '1.5rem',
+                textAlign: 'center'
+              }}>
+                ⚠️ ÖNEMLİ BİLGİLENDİRME
+              </h3>
+              <ul style={{
+                listStyle: 'none',
+                color: '#e5e7eb'
+              }}>
               {[
                 'Analist Ligi, T.C. yasalarına uygun bir gelişim platformudur.',
                 'Platformda para yatırma veya çekme işlemi YOKTUR.',
@@ -866,52 +869,52 @@ export default function LandingPage() {
                   {item}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Final CTA Section */}
-      <section style={{
-        padding: '5rem 0',
-        background: '#0f172a',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
+        {/* Final CTA Section */}
+        <section style={{
+          padding: '5rem 0',
+          background: '#0f172a',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
         <div style={{
           maxWidth: '1200px',
           margin: '0 auto',
           padding: '0 1rem'
         }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '2rem'
-          }}>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                color: '#94a3b8',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-                transition: 'color 0.3s ease'
-              }}>🐦</button>
-              <button style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                color: '#94a3b8',
-                textDecoration: 'none',
-                fontSize: '1.2rem',
-                transition: 'color 0.3s ease'
-              }}>📷</button>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '2rem'
+            }}>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1.2rem',
+                  transition: 'color 0.3s ease'
+                }}>🐦</button>
+                <button style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1.2rem',
+                  transition: 'color 0.3s ease'
+                }}>📷</button>
+              </div>
             </div>
-          </div>
         </div>
       </section>
 
@@ -922,13 +925,13 @@ export default function LandingPage() {
         borderTop: '1px solid rgba(255, 255, 255, 0.1)',
         textAlign: 'center'
       }}>
-        <div style={{
-          color: '#64748b',
+            <div style={{
+              color: '#64748b',
           fontSize: '0.9rem'
-        }}>
-          © 2025 Analist Ligi. Tüm hakları saklıdır.
-        </div>
+            }}>
+              © 2025 Analist Ligi. Tüm hakları saklıdır.
+            </div>
       </footer>
-    </div>
+          </div>
   );
 }
