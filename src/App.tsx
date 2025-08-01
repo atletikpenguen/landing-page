@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useForm, ValidationError } from '@formspree/react';
 
 export default function LandingPage() {
   const [email, setEmail] = useState('');
@@ -8,6 +9,9 @@ export default function LandingPage() {
   const [emailList, setEmailList] = useState<any[]>([]);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState('');
+  
+  // Formspree hook
+  const [formState, handleFormspreeSubmit] = useForm("xnnzbajd");
 
   // Admin panel check
   React.useEffect(() => {
@@ -124,7 +128,7 @@ export default function LandingPage() {
     }
   };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -145,14 +149,15 @@ export default function LandingPage() {
         return;
       }
 
-      // Create email data
+      // Submit to Formspree
+      await handleFormspreeSubmit(e);
+
+      // If successful, save to local storage
       const emailData = {
         email: email,
         timestamp: new Date().toISOString(),
         date: new Date().toLocaleString('tr-TR')
       };
-
-      // Sadece local storage'a kaydet (basit çözüm)
       saveEmailWithBackup(emailData);
       
       // Success feedback
@@ -169,6 +174,17 @@ export default function LandingPage() {
       setIsLoading(false);
     }
   };
+
+  // Formspree success effect
+  React.useEffect(() => {
+    if (formState.succeeded) {
+      setIsSubmitted(true);
+      setEmail('');
+      setTimeout(() => {
+        setIsSubmitted(false);
+      }, 5000);
+    }
+  }, [formState.succeeded]);
 
   // Password Prompt
   if (showPasswordPrompt) {
@@ -500,23 +516,19 @@ export default function LandingPage() {
                 margin: '0 auto 3rem',
               backdropFilter: 'blur(10px)'
               }}>
-              <form 
-                action="https://formspree.io/f/xnnzbajd"
-                method="POST"
-                onSubmit={handleSubmit}
-              >
+              <form onSubmit={handleSubmit}>
                 
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
                   gap: '1rem'
                   }}>
-                    <input
+                                        <input
                       type="email"
-                    name="email"
+                      name="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e-posta adresinizi girin..."
+                      placeholder="e-posta adresinizi girin..."
                       required
                       style={{
                         width: '100%',
@@ -530,26 +542,32 @@ export default function LandingPage() {
                         boxSizing: 'border-box'
                       }}
                     />
+                    <ValidationError 
+                      prefix="Email" 
+                      field="email"
+                      errors={formState.errors}
+                      style={{color: '#ef4444', fontSize: '0.9rem', marginTop: '0.5rem'}}
+                    />
                   
-                    <button
+                                        <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={formState.submitting}
                       style={{
                         width: '100%',
                         padding: '1rem 2rem',
-                      background: isLoading 
-                        ? 'rgba(96, 165, 250, 0.5)' 
-                        : 'linear-gradient(45deg, #60a5fa, #3b82f6)',
+                        background: formState.submitting 
+                          ? 'rgba(96, 165, 250, 0.5)' 
+                          : 'linear-gradient(45deg, #60a5fa, #3b82f6)',
                         border: 'none',
                         borderRadius: '8px',
                         color: 'white',
                         fontSize: '1rem',
                         fontWeight: 600,
-                      cursor: isLoading ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    {isLoading ? '🔄 Gönderiliyor...' : '🚀 ÖN KAYIT OLUŞTUR'}
+                        cursor: formState.submitting ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      {formState.submitting ? '🔄 Gönderiliyor...' : '🚀 ÖN KAYIT OLUŞTUR'}
                     </button>
                   </div>
                 </form>
