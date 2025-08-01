@@ -152,55 +152,19 @@ export default function LandingPage() {
         date: new Date().toLocaleString('tr-TR')
       };
 
-      // Google Apps Script Web App URL (değiştirin!)
-      const GOOGLE_SCRIPT_URL = 'https://script.google.com/a/macros/analistligi.com/s/AKfycbwqU8tVBFvFWaQp3eJH0e0qryx2BU7AKprk-0-1RU3Rj05sVLPEhwwgcP3pkBi86uzd/exec';
-      
-      // Send to Google Sheets
-      const formData = new FormData();
-      formData.append('email', emailData.email);
-      formData.append('date', emailData.date);
-      formData.append('timestamp', emailData.timestamp);
-
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Also save locally as backup
-        saveEmailWithBackup(emailData);
-        
-        // Success feedback
-        setIsSubmitted(true);
-        setEmail('');
-        setTimeout(() => {
-          setIsSubmitted(false);
-        }, 5000);
-      } else {
-        throw new Error(result.message || 'Google Sheets kaydı başarısız');
-      }
-
-    } catch (error) {
-      console.error('Form submission error:', error);
-      
-      // Fallback to local storage
-      const emailData = {
-        email: email,
-        timestamp: new Date().toISOString(),
-        date: new Date().toLocaleString('tr-TR')
-      };
+      // Sadece local storage'a kaydet (basit çözüm)
       saveEmailWithBackup(emailData);
       
-      // Still show success (user doesn't need to know about backend issues)
+      // Success feedback
       setIsSubmitted(true);
       setEmail('');
       setTimeout(() => {
         setIsSubmitted(false);
       }, 5000);
-      
-      console.log('Saved to local storage as fallback');
+
+    } catch (error) {
+      console.error('Form submission error:', error);
+      alert('Bir hata oluştu, lütfen tekrar deneyin');
     } finally {
       setIsLoading(false);
     }
@@ -330,29 +294,26 @@ export default function LandingPage() {
           </h1>
           
           <div style={{
-            background: 'rgba(52, 168, 83, 0.1)',
-            border: '2px solid #34a853',
+            background: 'rgba(96, 165, 250, 0.1)',
+            border: '2px solid #60a5fa',
             borderRadius: '12px',
             padding: '1.5rem',
             marginBottom: '2rem'
           }}>
-            <h3 style={{ color: '#34a853', marginBottom: '1rem', fontSize: '1.2rem' }}>
-              📊 Google Sheets Entegrasyonu Aktif!
+            <h3 style={{ color: '#60a5fa', marginBottom: '1rem', fontSize: '1.2rem' }}>
+              💾 Local Storage Backup Sistemi
             </h3>
             <p style={{ color: '#e5e7eb', lineHeight: 1.6, margin: 0 }}>
-              Tüm email kayıtları otomatik olarak <strong>Google Sheets</strong>'e kaydediliyor. 
-              Aşağıdaki butona tıklayarak real-time email listesini görüntüleyebilirsiniz.
+              Email'ler tarayıcıda güvenli şekilde saklanıyor. Export butonuyla JSON formatında indirebilirsiniz.
             </p>
           </div>
           
           <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => {
-                window.open('https://docs.google.com/spreadsheets/d/1M2YRv_MoJ6Wu3t-Mtl51KJrTL5mEy3pV-XHVDeLFoLw/edit', '_blank');
-              }}
+              onClick={exportEmails}
               style={{
                 padding: '1rem 2rem',
-                background: 'linear-gradient(45deg, #34a853, #0f9d58)',
+                background: 'linear-gradient(45deg, #22c55e, #16a34a)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
@@ -361,7 +322,7 @@ export default function LandingPage() {
                 fontWeight: 600
               }}
             >
-              📊 Google Sheets'i Aç
+              📥 Email Listesini İndir
             </button>
             
             <button
@@ -375,21 +336,7 @@ export default function LandingPage() {
                 cursor: 'pointer'
               }}
             >
-              🔄 Local Backup Yenile
-            </button>
-            
-            <button
-              onClick={exportEmails}
-              style={{
-                padding: '0.5rem 1rem',
-                background: '#22c55e',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              📥 Local Backup Export
+              🔄 Yenile
             </button>
             
             <button
@@ -553,7 +500,11 @@ export default function LandingPage() {
                 margin: '0 auto 3rem',
               backdropFilter: 'blur(10px)'
               }}>
-              <form onSubmit={handleSubmit}>
+              <form 
+                action="https://formspree.io/f/YOUR_FORM_ID"
+                method="POST"
+                onSubmit={handleSubmit}
+              >
                 
                   <div style={{
                     display: 'flex',
