@@ -153,7 +153,7 @@ export default function LandingPage() {
       };
 
       // Google Apps Script Web App URL (değiştirin!)
-      const GOOGLE_SCRIPT_URL = 'https://script.google.com/a/macros/analistligi.com/s/AKfycbwAjVKffZ9pQ-Ey6vNCBhV8S6_oYbp_tQNE6CInnqc_-mjxU3v5sc6mEBh1TLConLCOJQ/exec';
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/a/macros/analistligi.com/s/AKfycbwqU8tVBFvFWaQp3eJH0e0qryx2BU7AKprk-0-1RU3Rj05sVLPEhwwgcP3pkBi86uzd/exec';
       
       // Send to Google Sheets
       const formData = new FormData();
