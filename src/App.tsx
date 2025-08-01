@@ -501,7 +501,7 @@ export default function LandingPage() {
               backdropFilter: 'blur(10px)'
               }}>
               <form 
-                action="https://formspree.io/f/YOUR_FORM_ID"
+                action="https://formspree.io/f/xnnzbajd"
                 method="POST"
                 onSubmit={handleSubmit}
               >
